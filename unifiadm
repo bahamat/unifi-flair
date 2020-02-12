@@ -18,7 +18,7 @@ shift
 
 unifi_login >/dev/null
 
-"unifi_$cmd" "$@"
+"unifi_$cmd" "$@" | json data
 
 unifi_logout >/dev/null
 
