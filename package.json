@@ -1,0 +1,24 @@
+{
+  "name": "unifi-flair",
+  "version": "1.0.0",
+  "description": "Unifi add-ons",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bahamat/unifi-flair.git"
+  },
+  "keywords": [
+    "unifi"
+  ],
+  "author": "Brian Bennett <bahamat@digitalelf.net>",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/bahamat/unifi-flair/issues"
+  },
+  "homepage": "https://github.com/bahamat/unifi-flair#readme",
+  "dependencies": {
+    "bunyan": "^1.8.12",
+    "json": "^9.0.6",
+    "restify-clients": "^2.6.9",
+    "unifi-events": "^0.4.3"
+  }
+}

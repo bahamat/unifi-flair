@@ -1,0 +1,47 @@
+#!/bin/bash
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+dirname="${0%/*}"
+export PATH="${dirname}/node_modules/.bin":$PATH
+
+function usage() {
+    printf '%s [-n] [-t n]\n' "$(basename "$0")"
+    printf '\t-t n\tReconnect devices at or below threshhold.\n'
+    printf '\t\tDefault: 10\n'
+    printf '\t-n\tDry run\n'
+    exit "$1"
+}
+
+# shellcheck source=./unifi_sh_env
+[[ -f "${dirname}/unifi_sh_env" ]] && source "${dirname}/unifi_sh_env"
+# shellcheck source=./unifi_sh_api
+source "${dirname}/unifi_sh_api"
+
+while getopts 'hnt:' options; do
+    case $options in
+        h) usage 0;;
+        n) dryrun=1;;
+        t) min="$OPTARG";;
+        *) usage 1;;
+    esac
+done
+
+unifi_login >/dev/null
+
+stas=$(unifi_list_sta | json data)
+
+json -a -c "this.satisfaction<=${min:=10}" mac <<< "$stas" | \
+  while IFS='' read -r sta; do
+    sat=$(json -a -c "this.mac===\"$sta\"" satisfaction <<< "$stas")
+    n=$(json -a -e 'this.n=this.name||this.hostname' name)
+    printf 'Reconnecting device %s at satisfaction %d.\n' "$n" "$sat"
+    (( dryrun == 1 )) && return
+    unifi_reconnect_sta "$sta"
+  done
+
+unifi_logout >/dev/null
+rm -rf "${cookie:?}"

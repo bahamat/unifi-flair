@@ -1,0 +1,67 @@
+#!/bin/bash
+
+dirname="${0%/*}"
+export PATH="${dirname}/node_modules/.bin":$PATH
+
+# shellcheck source=./unifi_sh_env
+[[ -f "${dirname}/unifi_sh_env" ]] && source "${dirname}/unifi_sh_env"
+
+export username
+export password
+export baseurl
+export site
+
+node - << EOF
+const UnifiEvents = require('unifi-events')
+const bunyan = require('bunyan');
+const restify = require('restify-clients');
+
+var username = process.env.username;
+var password = process.env.password;
+var baseurl = process.env.baseurl;
+var site = process.env.site;
+
+var client = restify.createJsonClient({
+  url: baseurl
+});
+
+let unifi = new UnifiEvents({
+    controller: baseurl,
+    username: username,
+    password: password,
+    site: site,                            // Optional. The UniFi site to connect to, if not set will use the default site.
+    rejectUnauthorized: true,             // Optional. Set to false if you don't have a valid SSL
+    listen: true                          // Optional. Set to false if you don't want to listen for events
+})
+
+var log = bunyan.createLogger({name: "unifi-listen"});
+
+var register = function (type) {
+    unifi.on(type, function (data) {
+        log.info({ event: type, data: data});
+    });
+    log.info("Listning for " + type + " events");
+};
+
+// Listen for standard events
+var st_events = [
+    'connect',
+    'disconnect',
+    'event'
+];
+st_events.forEach(function (e) {
+    register(e);
+});
+
+// Get full list of events from controller and register listeners.
+client.get('/manage/locales/en/eventStrings.json', function(err, req, res, obj) {
+    if (err) {
+        log.error(err);
+    } else {
+        Object.keys(obj).forEach(function (e) {
+            register(e);
+        });
+    };
+});
+
+EOF
