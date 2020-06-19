@@ -9,16 +9,21 @@ dirname="${0%/*}"
 export PATH="${dirname}/node_modules/.bin":$PATH
 
 # shellcheck source=./unifi_sh_env
-[[ -f "${dirname}/unifi_sh_env" ]] && source "${dirname}/unifi_sh_env"
-# shellcheck source=./unifi_sh_api
-source "${dirname}/unifi_sh_api"
+[[ -r "${dirname}/unifi_sh_env" ]] && source "${dirname}/unifi_sh_env"
+if [[ -r ${dirname}/unifi_sh_api ]]; then
+    # shellcheck source=./unifi_sh_api
+    source "${dirname}/unifi_sh_api"
+else
+    printf 'unifi_sh_api missing or unreadable.\n'
+    exit 1
+fi
 
 cmd="$1"
 shift
 
 unifi_login >/dev/null
 
-"unifi_$cmd" "$@" | json data
+"unifi_$cmd" "$@" | json
 
 unifi_logout >/dev/null
 

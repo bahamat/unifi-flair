@@ -1,0 +1,40 @@
+#!/bin/bash
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+dirname="${0%/*}"
+export PATH="${dirname}/node_modules/.bin":$PATH
+
+cd "$dirname"
+
+if [[ -f ./unifi_sh_env ]]; then
+    # shellcheck source=unifi_sh_env
+    source ./unifi_sh_env
+fi
+
+basedir=/var/lib/unifi/sites
+config="$basedir/$site/config.gateway.json"
+json_obj_path='interfaces.tunnel.tun0.local-ip'
+
+#./unifiadm list_devices | json data | json -a -c 'this.type=="ugw"' _id ip mac | read -a ugw
+read -r -a ugw <<< <(./unifiadm list_devices | json data | json -a -c 'this.type=="ugw"' _id ip mac)
+#ugw_id="${ugw[0]}"
+current_ip="${ugw[1]}"
+ugw_mac="${ugw[2]}"
+saved_ip=$(json -f "$config" "$json_obj_path")
+
+fp_json=$(printf '{"cmd":"force-provision","mac":"%s"}' "$ugw_mac")
+
+
+if ! [[ $current_ip == "$saved_ip" ]]; then
+    curl -sif "https://${he_user}:${he_key}@ipv4.tunnelbroker.net/nic/update?hostname=${he_tunnel_id}"
+    json -e "this.$json_obj_path=\"$current_ip\"" <<< "$fp_json" > "${config}.new"
+    diff -u "$config" "$config.new"
+fi
